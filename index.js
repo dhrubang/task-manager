@@ -12,7 +12,16 @@ app.use(express.static(path.join(__dirname , 'public')));
 app.get('/', (req, res) => {
     fs.readdir(`./files` , function (err , files) {
         res.render("index" ,  {files : files});  // data send
+        console.log("ALso  Working");
+        
     })
+});
+
+app.post('/create', function(req, res)  {
+   fs.writeFile(`./files/${req.body.title.split(' ').join('')}.txt`, req.body.details , function(err){
+    res.redirect("/");
+    console.log("Working ")
+   })
 });
 
 app.listen(3000, () => {
