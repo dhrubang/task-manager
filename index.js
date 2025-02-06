@@ -36,8 +36,17 @@ app.get('/file/:filename', (req, res) => {
 
 //For edit
 app.get('/edit/:filename', (req, res) => {
-   res.render("edit")
+   res.render("edit" ,{filename:req.params.filename} ) 
  });
+ // for submit edit form
+app.post("/edit" , function (req ,res ){
+fs.rename(`./files/${req.body.previous}` , `./files/${req.body.new}` , function(err){
+    res.redirect("/");
+})
+   
+})
+
+
 app.listen(3000, () => {
     console.log('Server running on port 3000');
 });

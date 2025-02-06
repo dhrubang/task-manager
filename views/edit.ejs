@@ -10,7 +10,11 @@
 <body>
    <div class="main w-full text-white min-h-screen bg-zinc-700 p-10 text-white">
     <a href="/" class="text-blue-600 inline-block mb-10 ">back to home</a>         
- 
+    <form action="/edit" method="post">
+        <input name="previous" class="block px-5 w-1/4 outline-none rounded-md py-2 text-zinc-600 bg-zinc-800" type="text" placeholder="Previous Name" value="<%= filename%>" >
+        <input name="new" class="block px-5 mt-3 w-1/4 outline-none rounded-md py-2 bg-zinc-800" type="text" placeholder="New Name ">
+        <input class="mt-2 bg-yellow-600 px-5 py-2 rounded-md" type="submit" value="Update Task">
+    </form>
    </div>
 </body>
 </html>
