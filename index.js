@@ -33,6 +33,11 @@ app.get('/file/:filename', (req, res) => {
    })
 });
 
+
+//For edit
+app.get('/edit/:filename', (req, res) => {
+   res.render("edit")
+ });
 app.listen(3000, () => {
     console.log('Server running on port 3000');
 });
