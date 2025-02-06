@@ -29,7 +29,8 @@ npm install
 
 ### 3️⃣ Run the Server
 ```sh
-node server.js
+node index.js
+npx nodemon index.js
 ```
 
 ### 4️⃣ Open in Browser
