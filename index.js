@@ -24,6 +24,15 @@ app.post('/create', function(req, res)  {
    })
 });
 
+// create route for  read more 
+// use utf8 that it read and give me English data otherwise it give me buffer data
+
+app.get('/file/:filename', (req, res) => {
+   fs.readFile(`./files/${req.params.filename}`, "utf-8" , function(err , filedata){
+        res.render("showfiles" , {filename:req.params.filename  ,filedata:filedata})
+   })
+});
+
 app.listen(3000, () => {
     console.log('Server running on port 3000');
 });
