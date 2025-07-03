@@ -1,58 +1,454 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backend Form Task  Create  </title>
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <link rel="shortcut icon" href="/images/icon.png" type="image/x-icon">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .alert { display: none; }
+    .alert.show { display: block; }
+    #calendar { 
+      max-width: 900px; 
+      margin: 0 auto; 
+      padding: 24px; 
+      background: #1e293b; 
+      border-radius: 16px; 
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); 
+      overflow: auto; 
+    }
+    .fc { color: #e4e4e7; }
+    .fc-header-toolbar { 
+      background: #b91c1c; 
+      color: white; 
+      padding: 12px; 
+      border-radius: 12px 12px 0 0; 
+      margin-bottom: 12px; 
+    }
+    .fc-daygrid-day-bg, .fc-day-other, .fc-daygrid-day-frame, .fc-day { 
+      background: white !important; 
+    }
+    .fc-daygrid-day-number, .fc-col-header-cell { 
+      color: #000000 !important; 
+      font-weight: 800 !important; 
+      font-size: 1.1rem !important; 
+    }
+    .fc-button { 
+      background-color: #3b82f6 !important; 
+      border: none !important; 
+      border-radius: 8px !important; 
+      padding: 8px 16px !important; 
+      font-weight: 600 !important; 
+    }
+    .fc-button:hover { 
+      background-color: #1d4ed8 !important; 
+      transform: scale(1.05); 
+    }
+    .fc-event { 
+      background-color: #3b82f6; 
+      border-color: #1d4ed8; 
+      border-radius: 6px; 
+      padding: 6px; 
+      cursor: default; 
+      pointer-events: none !important; 
+    }
+    .modal { 
+      transition: opacity 0.3s ease, transform 0.3s ease; 
+      transform: scale(0.95); 
+    }
+    .modal.show { 
+      opacity: 1; 
+      transform: scale(1); 
+    }
+    .task { 
+      transition: transform 0.2s ease, box-shadow 0.2s ease; 
+    }
+    .task:hover { 
+      transform: translateY(-4px); 
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); 
+    }
+    button { 
+      transition: background-color 0.2s ease, transform 0.2s ease; 
+    }
+    button:hover { 
+      transform: scale(1.05); 
+    }
+    .action-button { 
+      width: 9rem; 
+      padding: 0.5rem 1rem; 
+      flex-shrink: 0; 
+    }
+  </style>
+  <link rel="shortcut icon" href="/images/icon.png" type="image/x-icon">
 </head>
-<body>
-   <div class="main w-full text-white min-h-screen bg-zinc-700">
-        <div class="form p-10 text-white">
-            <form action="/create" method="post">
-                <input name="title" class="block px-5 w-full outline-none rounded-md py-2 bg-zinc-800" type="text" placeholder="Title Goes Here ">
-                <textarea name="details" class="block mt-2 w-full outline-none rounded-md px-5 py-2 bg-zinc-800 resize-none" placeholder="Write your task Details Here"></textarea>
-                <input class="mt-2 bg-blue-600 px-5 py-2 rounded-md" type="submit" value="Create Task">
-            </form>
-        </div>
+<body class="bg-gradient-to-br from-gray-800 to-gray-900">
+  <%- include('partials/header') %>
+  <div class="main w-full min-h-screen p-6 md:p-10 text-white">
+    <!-- Buttons -->
+    <div class="container mx-auto p-6">
+      <div class="flex flex-row items-center space-x-3 mb-6">
+        <button class="action-button bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white" onclick="openCreateModal()">Create Task</button>
+        <button id="taskListBtn" class="action-button bg-blue-800 hover:bg-blue-700 rounded-lg font-semibold text-white">Task List</button>
+        <button id="taskCalendarBtn" class="action-button bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white">Task Calendar</button>
+      </div>
+      <div id="calendar" class="hidden"></div>
+      <div id="task-list" class="tasks container mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+        <% if (files.length > 0) { %>
+          <% files.forEach(function(file) { %>
+            <% function escapeJs(str) { return JSON.stringify(str).slice(1, -1).replace(/'/g, "\\'").replace(/"/g, '\\"'); } %>
+            <div class="task px-4 py-5 rounded-xl bg-slate-800 shadow-lg transition-shadow duration-300 cursor-move" draggable="true" data-filename="<%= encodeURIComponent(file.encoded) %>">
+              <h1 class="text-xl font-semibold text-white"><%= file.decoded %></h1>
+              <div class="flex w-full justify-between mt-4 items-center">
+                <a class="text-blue-400 hover:text-blue-300 transition-colors" href="/file/<%= encodeURIComponent(file.encoded) %>">Read More</a>
+                <a class="text-yellow-400 hover:text-yellow-300 transition-colors" href="/edit/<%= encodeURIComponent(file.encoded) %>">Edit</a>
+                <button class="text-red-400 hover:text-red-300 transition-colors" onclick="showDeleteModal('<%= encodeURIComponent(file.encoded) %>', '<%= escapeJs(file.decoded) %>')">Delete</button>
+              </div>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <h3 class="text-slate-400 text-lg col-span-full text-center">No Tasks Available</h3>
+        <% } %>
+      </div>
+    </div>
 
-        <div class="tasks flex gap-3 flex-wrap p-10">
-            <% if (files.length > 0) { %>
-                <% files.forEach(function(val) { %>
-                    <div class="task  min-w-72 px-3 py-4 rounded bg-zinc-800">
-                        <h1 class="text-white text-3xl tracking-tighter"> <%= val %> </h1>
-                        <div class="flex w-full justify-between  mt-3 items-center">
-                            <a class="text-blue-600 inline-block " href="/file/<%= val %>">Read More.</a>
-                            <a class="text-zinc-600" href="/edit/<%= val %>">Edit</a>
-                        </div>
-                        </div>
-                <% }); %>
-            <% } else { %>
-                <h3 class="text-zinc-600">No Task Here</h3>
-            <% } %>
+    <!-- Task Creation Modal -->
+    <div id="create-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-20">
+      <div class="bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4 modal">
+        <h2 class="text-xl font-bold text-white">Create New Task</h2>
+        <div id="create-alert-message" class="alert bg-red-500 text-white p-3 rounded-lg text-sm"></div>
+        <form id="create-form" class="space-y-4" onsubmit="return validateCreateForm(event)">
+          <input id="task-title" name="title" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" placeholder="Task Title">
+          <input id="task-email" name="email" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="email" placeholder="Email for Reminder">
+          <input id="task-due-date" name="dueDate" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="datetime-local" min="<%= new Date().toISOString().slice(0, 16) %>">
+          <textarea name="details" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="4" placeholder="Task Details"></textarea>
+          <div class="flex justify-end space-x-2">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold text-white">Save Task</button>
+            <button type="button" class="bg-slate-600 hover:bg-slate-700 px-6 py-3 rounded-lg font-semibold text-white" onclick="closeCreateModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-20">
+      <div class="bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4 modal">
+        <h2 class="text-xl font-bold text-white">Confirm Delete</h2>
+        <p class="text-gray-200">Are you sure you want to delete <span id="delete-task-name" class="font-semibold"></span>?</p>
+        <div class="flex justify-end space-x-2">
+          <button id="confirm-delete" class="bg-red-500 hover:bg-red-600 px-6 py-3 rounded-lg font-semibold text-white">Delete</button>
+          <button class="bg-slate-600 hover:bg-slate-700 px-6 py-3 rounded-lg font-semibold text-white" onclick="document.getElementById('delete-modal').classList.add('hidden')">Cancel</button>
         </div>
-   </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let calendarInstance = null;
+
+    function openCreateModal() {
+      console.log('Opening create modal');
+      const modal = document.getElementById('create-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('show');
+      document.getElementById('task-title').value = '';
+      document.getElementById('task-email').value = '';
+      document.getElementById('task-due-date').value = '';
+      document.getElementById('create-alert-message').classList.remove('show');
+    }
+
+    function closeCreateModal() {
+      console.log('Closing create modal');
+      const modal = document.getElementById('create-modal');
+      modal.classList.remove('show');
+      modal.classList.add('hidden');
+      document.getElementById('create-alert-message').classList.remove('show');
+    }
+
+    async function validateCreateForm(event) {
+      event.preventDefault();
+      const title = document.getElementById('task-title').value;
+      const email = document.getElementById('task-email').value;
+      const dueDate = document.getElementById('task-due-date').value;
+      const details = document.querySelector('textarea[name="details"]').value;
+      const alertMessage = document.getElementById('create-alert-message');
+      const invalidChars = /[^a-zA-Z0-9\s]/;
+      const emailRegex = /\S+@\S+\.\S+/;
+
+      alertMessage.classList.remove('show');
+      alertMessage.textContent = '';
+
+      if (!title.trim()) {
+        alertMessage.textContent = 'Task title cannot be empty';
+        alertMessage.classList.add('show');
+        return false;
+      }
+      if (invalidChars.test(title)) {
+        alertMessage.textContent = 'Task title can only contain letters, numbers, and spaces';
+        alertMessage.classList.add('show');
+        return false;
+      }
+      if (!email || !emailRegex.test(email)) {
+        alertMessage.textContent = 'Please enter a valid email address';
+        alertMessage.classList.add('show');
+        return false;
+      }
+      if (!dueDate) {
+        alertMessage.textContent = 'Please select a due date and time';
+        alertMessage.classList.add('show');
+        return false;
+      }
+
+      try {
+        // Check title availability
+        let response = await fetch('/check-title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title })
+        });
+        let data = await response.json();
+        if (!response.ok) {
+          alertMessage.textContent = data.error || 'Error checking title availability';
+          alertMessage.classList.add('show');
+          return false;
+        }
+        if (data.exists) {
+          alertMessage.textContent = 'Task title already exists. Please choose a different title.';
+          alertMessage.classList.add('show');
+          return false;
+        }
+
+        // Submit task
+        response = await fetch('/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ title, email, dueDate, details })
+        });
+        if (!response.ok) {
+          data = await response.json();
+          alertMessage.textContent = data.error || 'Error creating task';
+          alertMessage.classList.add('show');
+          return false;
+        }
+
+        // Refresh current view
+        await refreshView({ title, start: dueDate, url: `/file/${encodeURIComponent(title)}` });
+        closeCreateModal();
+        return true;
+      } catch (err) {
+        console.error('Error creating task:', err);
+        alertMessage.textContent = 'Error creating task: ' + err.message;
+        alertMessage.classList.add('show');
+        return false;
+      }
+    }
+
+    async function refreshView(newEvent = null) {
+      const calendarEl = document.getElementById('calendar');
+      const taskListEl = document.getElementById('task-list');
+      const isCalendarView = !calendarEl.classList.contains('hidden');
+      try {
+        const response = await fetch('/', { headers: { 'Accept': 'text/html' } });
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTaskList = doc.querySelector('#task-list').innerHTML;
+        taskListEl.innerHTML = newTaskList;
+
+        if (isCalendarView && calendarInstance) {
+          if (newEvent) {
+            console.log('New event added:', newEvent);
+            calendarInstance.addEvent(newEvent);
+            calendarInstance.render();
+          } else {
+            let events = [];
+            try {
+              const calendarEventsRaw = doc.querySelector('script').textContent.match(/const calendarEventsRaw = '([^']*)'/)[1];
+              events = JSON.parse(calendarEventsRaw);
+              if (!Array.isArray(events)) {
+                console.warn('calendarEvents is not an array, using empty array');
+                events = [];
+              }
+            } catch (err) {
+              console.error('Error parsing calendarEvents:', err);
+              events = [];
+            }
+            calendarInstance.getEvents().forEach(event => event.remove());
+            events.forEach(event => calendarInstance.addEvent(event));
+            calendarInstance.render();
+          }
+        }
+      } catch (err) {
+        console.error('Error refreshing view:', err);
+      }
+    }
+
+    function showDeleteModal(encodedFilename, decodedFilename) {
+      console.log('Opening delete modal for:', { encodedFilename, decodedFilename });
+      document.getElementById('delete-task-name').textContent = decodedFilename;
+      const modal = document.getElementById('delete-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('show');
+      document.getElementById('confirm-delete').onclick = () => deleteTask(encodedFilename, decodedFilename);
+    }
+
+    function deleteTask(filename, decodedFilename) {
+      console.log('Attempting to delete task:', { filename, decodedFilename });
+      const taskElement = document.querySelector(`.task[data-filename="${filename.replace(/"/g, '\\"').replace(/'/g, "\\'")}"]`);
+      const isCalendarView = !document.getElementById('calendar').classList.contains('hidden');
+      fetch(`/delete/${filename}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(response => {
+        console.log('Delete response status:', response.status, 'for', decodedFilename);
+        if (!response.ok) {
+          return response.json().then(err => { throw new Error(err.error || `HTTP error! Status: ${response.status}`); });
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.message === 'Task deleted successfully') {
+          console.log('Task deleted successfully:', decodedFilename);
+          if (taskElement) taskElement.remove();
+          if (isCalendarView && calendarInstance) {
+            const event = calendarInstance.getEvents().find(e => e.url === `/file/${filename}`);
+            if (event) event.remove();
+          }
+          document.getElementById('delete-modal').classList.add('hidden');
+          if (!document.querySelector('.task')) {
+            document.getElementById('task-list').innerHTML = '<h3 class="text-slate-400 text-lg col-span-full text-center">No Tasks Available</h3>';
+          }
+        } else {
+          console.error('Failed to delete task:', data.error || 'Unknown error', 'for', decodedFilename);
+          alert('Failed to delete task: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(err => {
+        console.error('Error deleting task:', err.message, { filename, decodedFilename });
+        alert('Error deleting task: ' + err.message);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const calendarEl = document.getElementById('calendar');
+      const taskListEl = document.getElementById('task-list');
+      const taskListBtn = document.getElementById('taskListBtn');
+      const taskCalendarBtn = document.getElementById('taskCalendarBtn');
+      let events = [];
+      try {
+        const calendarEventsRaw = '<%- calendarEvents || "[]" %>';
+        events = JSON.parse(calendarEventsRaw);
+        if (!Array.isArray(events)) {
+          console.warn('calendarEvents is not an array, using empty array');
+          events = [];
+        }
+      } catch (err) {
+        console.error('Error parsing calendarEvents:', err);
+        events = [];
+      }
+      calendarInstance = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        events: events
+      });
+      try {
+        calendarInstance.render();
+      } catch (err) {
+        console.error('Error rendering calendar:', err);
+      }
+
+      // Set initial view from URL query
+      const urlParams = new URLSearchParams(window.location.search);
+      const initialView = urlParams.get('view') === 'calendar' ? 'calendar' : 'list';
+      if (initialView === 'calendar') {
+        taskListEl.classList.add('hidden');
+        calendarEl.classList.remove('hidden');
+        taskCalendarBtn.classList.remove('bg-blue-600');
+        taskCalendarBtn.classList.add('bg-blue-800');
+        taskListBtn.classList.remove('bg-blue-800');
+        taskListBtn.classList.add('bg-blue-600');
+        try {
+          calendarInstance.render();
+        } catch (err) {
+          console.error('Error rendering calendar:', err);
+        }
+      } else {
+        taskListEl.classList.remove('hidden');
+        calendarEl.classList.add('hidden');
+        taskListBtn.classList.add('bg-blue-800');
+        taskCalendarBtn.classList.add('bg-blue-600');
+      }
+
+      taskListBtn.addEventListener('click', function() {
+        if (calendarEl.classList.contains('hidden')) return;
+        calendarEl.classList.add('hidden');
+        taskListEl.classList.remove('hidden');
+        taskListBtn.classList.remove('bg-blue-600');
+        taskListBtn.classList.add('bg-blue-800');
+        taskCalendarBtn.classList.remove('bg-blue-800');
+        taskCalendarBtn.classList.add('bg-blue-600');
+      });
+
+      taskCalendarBtn.addEventListener('click', function() {
+        if (taskListEl.classList.contains('hidden')) return;
+        taskListEl.classList.add('hidden');
+        calendarEl.classList.remove('hidden');
+        taskCalendarBtn.classList.remove('bg-blue-600');
+        taskCalendarBtn.classList.add('bg-blue-800');
+        taskListBtn.classList.remove('bg-blue-800');
+        taskListBtn.classList.add('bg-blue-600');
+        try {
+          calendarInstance.render();
+        } catch (err) {
+          console.error('Error re-rendering calendar:', err);
+        }
+      });
+
+      const taskList = document.getElementById('task-list');
+      let draggedItem = null;
+
+      taskList.addEventListener('dragstart', (e) => {
+        if (e.target.classList.contains('task')) {
+          draggedItem = e.target;
+          e.target.classList.add('opacity-50');
+        }
+      });
+
+      taskList.addEventListener('dragend', (e) => {
+        if (draggedItem && e.target.classList.contains('task')) {
+          e.target.classList.remove('opacity-50');
+          draggedItem = null;
+        }
+      });
+
+      taskList.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+
+      taskList.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (draggedItem && e.target.classList.contains('task') && e.target !== draggedItem) {
+          const allTasks = [...taskList.querySelectorAll('.task')];
+          const draggedIndex = allTasks.indexOf(draggedItem);
+          const targetIndex = allTasks.indexOf(e.target);
+          if (draggedIndex < targetIndex) {
+            e.target.after(draggedItem);
+          } else {
+            e.target.before(draggedItem);
+          }
+          const newOrder = allTasks.map(task => decodeURIComponent(task.dataset.filename));
+          fetch('/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: newOrder })
+          }).catch(err => console.error('Error saving order:', err));
+        }
+      });
+    });
+  </script>
 </body>
 </html>
-
-
-
-<!--  code Html -->
-<!-- <div class="main w-full text-white min-h-screen bg-zinc-700">
-    <div class="form p-10  text-white">
-        <form action="">
-            <input    class="block px-5 w-full outline-none rounded-md py-2 bg-zinc-800 " type="text" placeholder="Title Goes Here ">
-            <textarea class="block mt-2 w-full outline-none rounded-mdpx-5 py-2 bg-zinc-800 resize-none" placeholder="Write your task Details Here"></textarea>
-            <input class="mt-2 bg-blue-600 px-5 py-2 rounded-md" type="submit" placeholder="Create Task">
-        </form>
-    </div>
-     <div class="tasks flex  gap-3 flex-wrap p-10">
-            <!--Task 1  -->
-        <!-- <div class="task hidden w-72 px-3 py-4 rounded bg-zinc-800">
-            <h1 class="text-white text-3xl tracking-tighter">Some Task Goes Here</h1>
-            <a  class="text-blue-600 inline-block mt-3" href="">Read More.</a>
-        </div>
-        <h3 class="text-zinc-600  ">No Task Here</h3>
-    </div>
-   </div> -->

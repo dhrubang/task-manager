@@ -1,21 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backend Form Task  Create  </title>
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <link rel="shortcut icon" href="/images/icon.png" type="image/x-icon">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Task</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .alert { display: none; }
+    .alert.show { display: block; }
+  </style>
 </head>
-<body>
-   <div class="main w-full text-white min-h-screen bg-zinc-700 p-10 text-white">
-    <a href="/" class="text-blue-600 inline-block mb-10 ">back to home</a>         
-    <form action="/edit" method="post">
-        <input name="previous" class="block px-5 w-1/4 outline-none rounded-md py-2 text-zinc-600 bg-zinc-800" type="text" placeholder="Previous Name" value="<%= filename%>" >
-        <input name="new" class="block px-5 mt-3 w-1/4 outline-none rounded-md py-2 bg-zinc-800" type="text" placeholder="New Name ">
-        <input class="mt-2 bg-yellow-600 px-5 py-2 rounded-md" type="submit" value="Update Task">
+<body class="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-10 text-white">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Edit Task: <%= displayName %></h1>
+    <div id="edit-alert-message" class="alert bg-red-600 text-white p-3 rounded-lg text-sm mb-4"></div>
+    <form id="edit-form" action="/edit" method="post" class="space-y-4" onsubmit="return validateEditForm(event)">
+      <input type="hidden" name="previous" value="<%= encodeURIComponent(filename) %>">
+      <input id="edit-title" name="new" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" value="<%= displayName %>">
+      <input id="edit-email" name="email" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="email" value="<%= email %>">
+      <input id="edit-due-date" name="dueDate" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="datetime-local" value="<%= dueDate %>" min="<%= new Date().toISOString().slice(0, 16) %>">
+      <textarea name="details" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="6"><%= filedata %></textarea>
+      <div class="flex justify-end space-x-2">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Save Changes</button>
+        <a href="/" class="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Cancel</a>
+      </div>
     </form>
-   </div>
+  </div>
+
+  <script>
+    async function validateEditForm(event) {
+      event.preventDefault();
+      const title = document.getElementById('edit-title').value;
+      const email = document.getElementById('edit-email').value;
+      const dueDate = document.getElementById('edit-due-date').value;
+      const previous = document.querySelector('input[name="previous"]').value;
+      const details = document.querySelector('textarea[name="details"]').value;
+      const alertMessage = document.getElementById('edit-alert-message');
+      const invalidChars = /[^a-zA-Z0-9\s]/;
+      const emailRegex = /\S+@\S+\.\S+/;
+
+      alertMessage.classList.remove('show');
+      alertMessage.textContent = '';
+
+      if (!title.trim()) {
+        alertMessage.textContent = 'Task title cannot be empty';
+        alertMessage.classList.add('show');
+        return false;
+      }
+      if (invalidChars.test(title)) {
+        alertMessage.textContent = 'Task title can only contain letters, numbers, and spaces';
+        alertMessage.classList.add('show');
+        return false;
+      }
+      if (!email || !emailRegex.test(email)) {
+        alertMessage.textContent = 'Please enter a valid email address';
+        alertMessage.classList.add('show');
+        return false;
+      }
+      if (!dueDate) {
+        alertMessage.textContent = 'Please select a due date and time';
+        alertMessage.classList.add('show');
+        return false;
+      }
+
+      // Skip duplicate check if title is unchanged
+      if (title === decodeURIComponent(previous)) {
+        try {
+          const response = await fetch('/edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ previous, new: title, details, email, dueDate })
+          });
+          if (response.ok) {
+            window.location.href = '/';
+          } else {
+            const data = await response.json();
+            alertMessage.textContent = data.error || 'Failed to save changes';
+            alertMessage.classList.add('show');
+          }
+        } catch (err) {
+          console.error('Error saving task:', err);
+          alertMessage.textContent = 'Error saving task: ' + err.message;
+          alertMessage.classList.add('show');
+        }
+        return false;
+      }
+
+      // Check for duplicate title
+      try {
+        const response = await fetch('/check-title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, exclude: decodeURIComponent(previous) })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          alertMessage.textContent = data.error || 'Error checking title availability';
+          alertMessage.classList.add('show');
+          return false;
+        }
+        if (data.exists) {
+          alertMessage.textContent = 'Task title already exists. Please choose a different title.';
+          alertMessage.classList.add('show');
+          return false;
+        }
+        // Submit form
+        const formResponse = await fetch('/edit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ previous, new: title, details, email, dueDate })
+        });
+        if (formResponse.ok) {
+          window.location.href = '/';
+        } else {
+          const formData = await formResponse.json();
+          alertMessage.textContent = formData.error || 'Failed to save changes';
+          alertMessage.classList.add('show');
+        }
+      } catch (err) {
+        console.error('Error checking title:', err);
+        alertMessage.textContent = 'Error checking title availability: ' + err.message;
+        alertMessage.classList.add('show');
+        return false;
+      }
+    }
+  </script>
 </body>
 </html>
-

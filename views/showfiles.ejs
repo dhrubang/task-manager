@@ -1,19 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backend Form Task  Create  </title>
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <link rel="shortcut icon" href="/images/icon.png" type="image/x-icon">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Details</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
 </head>
-<body>
-   <div class="main w-full text-white min-h-screen bg-zinc-700 p-10 text-white">
-    <a href="/" class="text-blue-600 inline-block mb-10 ">back to home</a>         
-    <h1 class="text-3xl"><%= filename %></h1>
-<p class="text-xl mt-2"><%= filedata %></p>
-
-   </div>
+<body class="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-10 text-white">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Task: <%= filename %></h1>
+    <p class="text-lg mb-4"><strong>Email:</strong> <%= email %></p>
+    <p class="text-lg mb-4"><strong>Due Date:</strong> <%= new Date(dueDate).toLocaleString() %></p>
+    <p class="text-lg mb-4"><strong>Details:</strong></p>
+    <p class="bg-zinc-800 p-4 rounded-lg"><%= filedata %></p>
+    <div class="mt-6">
+      <a href="/edit/<%= encodeURIComponent(filename) %>" class="bg-yellow-600 hover:bg-yellow-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Edit Task</a>
+      <a href="/" class="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Back to Tasks</a>
+    </div>
+  </div>
 </body>
 </html>
-
