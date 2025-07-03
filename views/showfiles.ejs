@@ -9,17 +9,20 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
   </style>
+  <link rel="shortcut icon" href="/images/icon.png" type="image/x-icon">
 </head>
-<body class="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-10 text-white">
-  <div class="max-w-2xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Task: <%= filename %></h1>
-    <p class="text-lg mb-4"><strong>Email:</strong> <%= email %></p>
-    <p class="text-lg mb-4"><strong>Due Date:</strong> <%= new Date(dueDate).toLocaleString() %></p>
-    <p class="text-lg mb-4"><strong>Details:</strong></p>
-    <p class="bg-zinc-800 p-4 rounded-lg"><%= filedata %></p>
-    <div class="mt-6">
-      <a href="/edit/<%= encodeURIComponent(filename) %>" class="bg-yellow-600 hover:bg-yellow-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Edit Task</a>
-      <a href="/" class="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Back to Tasks</a>
+<body class="bg-gradient-to-br from-gray-800 to-gray-900 min-h-screen flex items-center justify-center">
+  <div class="container mx-auto p-6">
+    <div class="bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
+      <h2 class="text-xl font-bold text-white">Task Details</h2>
+      <p class="text-gray-200"><strong>Title:</strong> <%= task.title %></p>
+      <p class="text-gray-200"><strong>Email:</strong> <%= task.email %></p>
+      <p class="text-gray-200"><strong>Due Date:</strong> <%= new Date(task.dueDate).toLocaleString() %></p>
+      <p class="text-gray-200"><strong>Details:</strong> <%= task.details %></p>
+      <div class="flex justify-end space-x-2">
+        <a href="/edit/<%= encodeURIComponent(task.title) %>" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold text-white">Edit</a>
+        <a href="/" class="bg-slate-600 hover:bg-slate-700 px-6 py-3 rounded-lg font-semibold text-white">Back</a>
+      </div>
     </div>
   </div>
 </body>

@@ -53,8 +53,8 @@
       border-color: #1d4ed8; 
       border-radius: 6px; 
       padding: 6px; 
-      cursor: default; 
-      pointer-events: none !important; 
+      cursor: pointer; 
+      pointer-events: auto !important; 
     }
     .modal { 
       transition: opacity 0.3s ease, transform 0.3s ease; 
@@ -64,10 +64,10 @@
       opacity: 1; 
       transform: scale(1); 
     }
-    .task { 
+    .task, .reorder-task { 
       transition: transform 0.2s ease, box-shadow 0.2s ease; 
     }
-    .task:hover { 
+    .task:hover, .reorder-task:hover { 
       transform: translateY(-4px); 
       box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); 
     }
@@ -82,6 +82,44 @@
       padding: 0.5rem 1rem; 
       flex-shrink: 0; 
     }
+    #task-tooltip {
+      position: absolute;
+      background: #1e293b;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      max-width: 300px;
+      display: none;
+      pointer-events: none;
+    }
+    #task-tooltip h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    #task-tooltip p {
+      font-size: 0.875rem;
+      color: #d1d5db;
+      white-space: pre-wrap;
+      margin: 0;
+    }
+    #task-tooltip .close-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: none;
+      border: none;
+      color: #d1d5db;
+      font-size: 0.875rem;
+      cursor: pointer;
+      padding: 2px;
+      pointer-events: auto;
+    }
+    #task-tooltip .close-btn:hover {
+      color: #ffffff;
+    }
   </style>
   <link rel="shortcut icon" href="/images/icon.png" type="image/x-icon">
 </head>
@@ -94,21 +132,22 @@
         <button class="action-button bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white" onclick="openCreateModal()">Create Task</button>
         <button id="taskListBtn" class="action-button bg-blue-800 hover:bg-blue-700 rounded-lg font-semibold text-white">Task List</button>
         <button id="taskCalendarBtn" class="action-button bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white">Task Calendar</button>
+        <button id="reorderTaskBtn" class="action-button bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white">Reorder Task</button>
       </div>
       <div id="calendar" class="hidden"></div>
       <div id="task-list" class="tasks container mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
         <% if (files.length > 0) { %>
           <% files.forEach(function(file) { %>
             <% function escapeJs(str) { return JSON.stringify(str).slice(1, -1).replace(/'/g, "\\'").replace(/"/g, '\\"'); } %>
-            <div class="task px-4 py-5 rounded-xl bg-slate-800 shadow-lg transition-shadow duration-300 cursor-move" draggable="true" data-filename="<%= encodeURIComponent(file.encoded) %>">
+            <div class="task px-4 py-5 rounded-xl bg-slate-800 shadow-lg transition-shadow duration-300" data-filename="<%= escapeJs(file.decoded) %>">
               <h1 class="text-xl font-semibold text-white"><%= file.decoded %></h1>
               <div class="flex w-full justify-between mt-4 items-center">
-                <a class="text-blue-400 hover:text-blue-300 transition-colors" href="/file/<%= encodeURIComponent(file.encoded) %>">Read More</a>
-                <a class="text-yellow-400 hover:text-yellow-300 transition-colors" href="/edit/<%= encodeURIComponent(file.encoded) %>">Edit</a>
-                <button class="text-red-400 hover:text-red-300 transition-colors" onclick="showDeleteModal('<%= encodeURIComponent(file.encoded) %>', '<%= escapeJs(file.decoded) %>')">Delete</button>
+                <a class="text-blue-400 hover:text-blue-300 transition-colors" href="/file/<%= encodeURIComponent(file.decoded) %>">Read More</a>
+                <a class="text-yellow-400 hover:text-yellow-300 transition-colors" href="/edit/<%= encodeURIComponent(file.decoded) %>?view=<%= initialView %>">Edit</a>
+                <button class="text-red-400 hover:text-red-300 transition-colors" onclick="showDeleteModal('<%= encodeURIComponent(file.decoded) %>', '<%= escapeJs(file.decoded) %>')">Delete</button>
               </div>
             </div>
-          <% }); %>
+          <% }) %>
         <% } else { %>
           <h3 class="text-slate-400 text-lg col-span-full text-center">No Tasks Available</h3>
         <% } %>
@@ -144,6 +183,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Reorder Task Modal -->
+    <div id="reorder-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-20">
+      <div class="bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4 modal">
+        <h2 class="text-xl font-bold text-white">Reorder Tasks</h2>
+        <div id="reorder-list" class="space-y-2">
+          <% if (files.length > 0) { %>
+            <% files.forEach(function(file) { %>
+              <% function escapeJs(str) { return JSON.stringify(str).slice(1, -1).replace(/'/g, "\\'").replace(/"/g, '\\"'); } %>
+              <div class="reorder-task px-4 py-3 rounded-lg bg-slate-700 shadow-lg transition-shadow duration-300 cursor-move" draggable="true" data-filename="<%= escapeJs(file.decoded) %>">
+                <h3 class="text-lg font-semibold text-white"><%= file.decoded %></h3>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <p class="text-slate-400 text-center">No tasks available to reorder</p>
+          <% } %>
+        </div>
+        <div class="flex justify-end space-x-2">
+          <button id="confirm-reorder" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold text-white">Confirm</button>
+          <button class="bg-slate-600 hover:bg-slate-700 px-6 py-3 rounded-lg font-semibold text-white" onclick="closeReorderModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task Tooltip -->
+    <div id="task-tooltip" class="hidden">
+      <button class="close-btn" onclick="document.getElementById('task-tooltip').style.display='none'">✕</button>
+      <h3 id="tooltip-title"></h3>
+      <p id="tooltip-details"></p>
+    </div>
   </div>
 
   <script>
@@ -157,6 +226,7 @@
       document.getElementById('task-title').value = '';
       document.getElementById('task-email').value = '';
       document.getElementById('task-due-date').value = '';
+      document.querySelector('textarea[name="details"]').value = '';
       document.getElementById('create-alert-message').classList.remove('show');
     }
 
@@ -166,6 +236,20 @@
       modal.classList.remove('show');
       modal.classList.add('hidden');
       document.getElementById('create-alert-message').classList.remove('show');
+    }
+
+    function openReorderModal() {
+      console.log('Opening reorder modal');
+      const modal = document.getElementById('reorder-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('show');
+    }
+
+    function closeReorderModal() {
+      console.log('Closing reorder modal');
+      const modal = document.getElementById('reorder-modal');
+      modal.classList.remove('show');
+      modal.classList.add('hidden');
     }
 
     async function validateCreateForm(event) {
@@ -203,7 +287,6 @@
       }
 
       try {
-        // Check title availability
         let response = await fetch('/check-title', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -221,7 +304,6 @@
           return false;
         }
 
-        // Submit task
         response = await fetch('/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -234,8 +316,7 @@
           return false;
         }
 
-        // Refresh current view
-        await refreshView({ title, start: dueDate, url: `/file/${encodeURIComponent(title)}` });
+        await refreshView({ title, start: new Date(dueDate).toISOString(), url: `/file/${encodeURIComponent(title)}`, details });
         closeCreateModal();
         return true;
       } catch (err) {
@@ -251,23 +332,31 @@
       const taskListEl = document.getElementById('task-list');
       const isCalendarView = !calendarEl.classList.contains('hidden');
       try {
-        const response = await fetch('/', { headers: { 'Accept': 'text/html' } });
+        const response = await fetch('/?view=' + (isCalendarView ? 'calendar' : 'list'), { headers: { 'Accept': 'text/html' } });
         const html = await response.text();
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        const newTaskList = doc.querySelector('#task-list').innerHTML;
-        taskListEl.innerHTML = newTaskList;
+        taskListEl.innerHTML = doc.querySelector('#task-list').innerHTML;
+        const reorderListEl = document.getElementById('reorder-list');
+        if (reorderListEl) {
+          reorderListEl.innerHTML = doc.querySelector('#reorder-list').innerHTML;
+        }
 
         if (isCalendarView && calendarInstance) {
           if (newEvent) {
-            console.log('New event added:', newEvent);
+            console.log('Adding new event to calendar:', newEvent);
             calendarInstance.addEvent(newEvent);
             calendarInstance.render();
           } else {
             let events = [];
             try {
-              const calendarEventsRaw = doc.querySelector('script').textContent.match(/const calendarEventsRaw = '([^']*)'/)[1];
-              events = JSON.parse(calendarEventsRaw);
+              const calendarEventsScript = doc.querySelector('script#calendar-events');
+              if (calendarEventsScript) {
+                events = JSON.parse(calendarEventsScript.textContent);
+              } else {
+                console.warn('No calendar-events script found, using empty array');
+                events = [];
+              }
               if (!Array.isArray(events)) {
                 console.warn('calendarEvents is not an array, using empty array');
                 events = [];
@@ -277,7 +366,14 @@
               events = [];
             }
             calendarInstance.getEvents().forEach(event => event.remove());
-            events.forEach(event => calendarInstance.addEvent(event));
+            events.forEach(event => {
+              calendarInstance.addEvent({
+                title: event.title,
+                start: event.start,
+                url: event.url,
+                details: event.details
+              });
+            });
             calendarInstance.render();
           }
         }
@@ -297,7 +393,7 @@
 
     function deleteTask(filename, decodedFilename) {
       console.log('Attempting to delete task:', { filename, decodedFilename });
-      const taskElement = document.querySelector(`.task[data-filename="${filename.replace(/"/g, '\\"').replace(/'/g, "\\'")}"]`);
+      const taskElement = document.querySelector(`.task[data-filename="${CSS.escape(decodedFilename)}"]`);
       const isCalendarView = !document.getElementById('calendar').classList.contains('hidden');
       fetch(`/delete/${filename}`, {
         method: 'DELETE',
@@ -313,14 +409,28 @@
       .then(data => {
         if (data.message === 'Task deleted successfully') {
           console.log('Task deleted successfully:', decodedFilename);
-          if (taskElement) taskElement.remove();
+          if (taskElement) {
+            taskElement.remove();
+          } else {
+            console.warn('Task element not found in DOM:', decodedFilename);
+          }
           if (isCalendarView && calendarInstance) {
             const event = calendarInstance.getEvents().find(e => e.url === `/file/${filename}`);
-            if (event) event.remove();
+            if (event) {
+              event.remove();
+              calendarInstance.render();
+            }
           }
           document.getElementById('delete-modal').classList.add('hidden');
           if (!document.querySelector('.task')) {
             document.getElementById('task-list').innerHTML = '<h3 class="text-slate-400 text-lg col-span-full text-center">No Tasks Available</h3>';
+          }
+          const reorderTaskElement = document.querySelector(`.reorder-task[data-filename="${CSS.escape(decodedFilename)}"]`);
+          if (reorderTaskElement) {
+            reorderTaskElement.remove();
+          }
+          if (!document.querySelector('.reorder-task')) {
+            document.getElementById('reorder-list').innerHTML = '<p class="text-slate-400 text-center">No tasks available to reorder</p>';
           }
         } else {
           console.error('Failed to delete task:', data.error || 'Unknown error', 'for', decodedFilename);
@@ -338,10 +448,12 @@
       const taskListEl = document.getElementById('task-list');
       const taskListBtn = document.getElementById('taskListBtn');
       const taskCalendarBtn = document.getElementById('taskCalendarBtn');
+      const reorderTaskBtn = document.getElementById('reorderTaskBtn');
+      const tooltip = document.getElementById('task-tooltip');
+
       let events = [];
       try {
-        const calendarEventsRaw = '<%- calendarEvents || "[]" %>';
-        events = JSON.parse(calendarEventsRaw);
+        events = JSON.parse(document.getElementById('calendar-events').textContent);
         if (!Array.isArray(events)) {
           console.warn('calendarEvents is not an array, using empty array');
           events = [];
@@ -350,18 +462,40 @@
         console.error('Error parsing calendarEvents:', err);
         events = [];
       }
+
       calendarInstance = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
-        events: events
+        events: events,
+        eventTimeFormat: {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        },
+        eventClick: function(info) {
+          console.log('Event clicked:', info.event.title);
+          info.jsEvent.preventDefault(); // Prevent navigation
+          const tooltipTitle = document.getElementById('tooltip-title');
+          const tooltipDetails = document.getElementById('tooltip-details');
+          tooltipTitle.textContent = info.event.title;
+          tooltipDetails.textContent = info.event.extendedProps.details || 'No details provided';
+          tooltip.style.display = 'block';
+          const rect = info.el.getBoundingClientRect();
+          tooltip.style.left = `${rect.left + window.scrollX + rect.width / 2 - tooltip.offsetWidth / 2}px`;
+          tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 10}px`;
+        },
+        eventMouseLeave: function(info) {
+          console.log('Mouse left event:', info.event.title);
+          tooltip.style.display = 'none';
+        }
       });
+
       try {
         calendarInstance.render();
       } catch (err) {
         console.error('Error rendering calendar:', err);
       }
 
-      // Set initial view from URL query
       const urlParams = new URLSearchParams(window.location.search);
       const initialView = urlParams.get('view') === 'calendar' ? 'calendar' : 'list';
       if (initialView === 'calendar') {
@@ -391,6 +525,9 @@
         taskListBtn.classList.add('bg-blue-800');
         taskCalendarBtn.classList.remove('bg-blue-800');
         taskCalendarBtn.classList.add('bg-blue-600');
+        reorderTaskBtn.classList.remove('bg-blue-800');
+        reorderTaskBtn.classList.add('bg-blue-600');
+        window.history.pushState({}, '', '/?view=list');
       });
 
       taskCalendarBtn.addEventListener('click', function() {
@@ -401,6 +538,9 @@
         taskCalendarBtn.classList.add('bg-blue-800');
         taskListBtn.classList.remove('bg-blue-800');
         taskListBtn.classList.add('bg-blue-600');
+        reorderTaskBtn.classList.remove('bg-blue-800');
+        reorderTaskBtn.classList.add('bg-blue-600');
+        window.history.pushState({}, '', '/?view=calendar');
         try {
           calendarInstance.render();
         } catch (err) {
@@ -408,31 +548,41 @@
         }
       });
 
-      const taskList = document.getElementById('task-list');
+      reorderTaskBtn.addEventListener('click', function() {
+        openReorderModal();
+        taskListBtn.classList.remove('bg-blue-800');
+        taskListBtn.classList.add('bg-blue-600');
+        taskCalendarBtn.classList.remove('bg-blue-800');
+        taskCalendarBtn.classList.add('bg-blue-600');
+        reorderTaskBtn.classList.remove('bg-blue-600');
+        reorderTaskBtn.classList.add('bg-blue-800');
+      });
+
+      const reorderList = document.getElementById('reorder-list');
       let draggedItem = null;
 
-      taskList.addEventListener('dragstart', (e) => {
-        if (e.target.classList.contains('task')) {
+      reorderList.addEventListener('dragstart', (e) => {
+        if (e.target.classList.contains('reorder-task')) {
           draggedItem = e.target;
           e.target.classList.add('opacity-50');
         }
       });
 
-      taskList.addEventListener('dragend', (e) => {
-        if (draggedItem && e.target.classList.contains('task')) {
+      reorderList.addEventListener('dragend', (e) => {
+        if (draggedItem && e.target.classList.contains('reorder-task')) {
           e.target.classList.remove('opacity-50');
           draggedItem = null;
         }
       });
 
-      taskList.addEventListener('dragover', (e) => {
+      reorderList.addEventListener('dragover', (e) => {
         e.preventDefault();
       });
 
-      taskList.addEventListener('drop', (e) => {
+      reorderList.addEventListener('drop', (e) => {
         e.preventDefault();
-        if (draggedItem && e.target.classList.contains('task') && e.target !== draggedItem) {
-          const allTasks = [...taskList.querySelectorAll('.task')];
+        if (draggedItem && e.target.classList.contains('reorder-task') && e.target !== draggedItem) {
+          const allTasks = [...reorderList.querySelectorAll('.reorder-task')];
           const draggedIndex = allTasks.indexOf(draggedItem);
           const targetIndex = allTasks.indexOf(e.target);
           if (draggedIndex < targetIndex) {
@@ -440,15 +590,36 @@
           } else {
             e.target.before(draggedItem);
           }
-          const newOrder = allTasks.map(task => decodeURIComponent(task.dataset.filename));
-          fetch('/reorder', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order: newOrder })
-          }).catch(err => console.error('Error saving order:', err));
         }
+      });
+
+      document.getElementById('confirm-reorder').addEventListener('click', () => {
+        const allTasks = [...reorderList.querySelectorAll('.reorder-task')];
+        const newOrder = allTasks.map(task => task.dataset.filename);
+        console.log('Sending reorder request:', newOrder);
+        fetch('/reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: newOrder })
+        })
+        .then(response => {
+          if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.error || 'Failed to save order'); });
+          }
+          console.log('Order saved successfully:', newOrder);
+          return response.json();
+        })
+        .then(() => {
+          closeReorderModal();
+          refreshView();
+        })
+        .catch(err => {
+          console.error('Error saving order:', err);
+          alert('Error saving order: ' + err.message);
+        });
       });
     });
   </script>
+  <script id="calendar-events" type="application/json"><%- JSON.stringify(calendarEvents) %></script>
 </body>
 </html>

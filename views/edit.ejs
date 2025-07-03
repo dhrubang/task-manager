@@ -10,36 +10,42 @@
     body { font-family: 'Inter', sans-serif; }
     .alert { display: none; }
     .alert.show { display: block; }
+    button { transition: background-color 0.2s ease, transform 0.2s ease; }
+    button:hover { transform: scale(1.05); }
   </style>
+  <link rel="shortcut icon" href="/images/icon.png" type="image/x-icon">
 </head>
-<body class="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-10 text-white">
-  <div class="max-w-2xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Edit Task: <%= displayName %></h1>
-    <div id="edit-alert-message" class="alert bg-red-600 text-white p-3 rounded-lg text-sm mb-4"></div>
-    <form id="edit-form" action="/edit" method="post" class="space-y-4" onsubmit="return validateEditForm(event)">
-      <input type="hidden" name="previous" value="<%= encodeURIComponent(filename) %>">
-      <input id="edit-title" name="new" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" value="<%= displayName %>">
-      <input id="edit-email" name="email" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="email" value="<%= email %>">
-      <input id="edit-due-date" name="dueDate" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="datetime-local" value="<%= dueDate %>" min="<%= new Date().toISOString().slice(0, 16) %>">
-      <textarea name="details" class="block w-full px-4 py-3 rounded-lg bg-zinc-700 border border-zinc-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="6"><%= filedata %></textarea>
-      <div class="flex justify-end space-x-2">
-        <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Save Changes</button>
-        <a href="/" class="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold text-white transition-colors">Cancel</a>
-      </div>
-    </form>
+<body class="bg-gradient-to-br from-gray-800 to-gray-900 min-h-screen flex items-center justify-center">
+  <div class="container mx-auto p-6">
+    <div class="bg-slate-800 p-6 rounded-xl max-w-md w-full space-y-4">
+      <h2 class="text-xl font-bold text-white">Edit Task</h2>
+      <div id="edit-alert-message" class="alert bg-red-500 text-white p-3 rounded-lg text-sm"></div>
+      <form id="edit-form" class="space-y-4" onsubmit="return validateEditForm(event)">
+        <input type="hidden" name="originalTitle" value="<%= task.title %>">
+        <input id="task-title" name="title" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" value="<%= task.title %>" placeholder="Task Title">
+        <input id="task-email" name="email" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="email" value="<%= task.email %>" placeholder="Email for Reminder">
+        <input id="task-due-date" name="dueDate" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" type="datetime-local" value="<%= task.dueDate.slice(0, 16) %>" min="<%= new Date().toISOString().slice(0, 16) %>">
+        <textarea name="details" class="block w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="4" placeholder="Task Details"><%= task.details %></textarea>
+        <div class="flex justify-end space-x-2">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold text-white">Save Changes</button>
+          <a href="/?view=<%= new URLSearchParams(request.query).get('view') || 'list' %>" class="bg-slate-600 hover:bg-slate-700 px-6 py-3 rounded-lg font-semibold text-white">Cancel</a>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
     async function validateEditForm(event) {
       event.preventDefault();
-      const title = document.getElementById('edit-title').value;
-      const email = document.getElementById('edit-email').value;
-      const dueDate = document.getElementById('edit-due-date').value;
-      const previous = document.querySelector('input[name="previous"]').value;
+      const title = document.getElementById('task-title').value;
+      const email = document.getElementById('task-email').value;
+      const dueDate = document.getElementById('task-due-date').value;
       const details = document.querySelector('textarea[name="details"]').value;
+      const originalTitle = document.querySelector('input[name="originalTitle"]').value;
       const alertMessage = document.getElementById('edit-alert-message');
       const invalidChars = /[^a-zA-Z0-9\s]/;
       const emailRegex = /\S+@\S+\.\S+/;
+      const view = new URLSearchParams(window.location.search).get('view') || 'list';
 
       alertMessage.classList.remove('show');
       alertMessage.textContent = '';
@@ -65,63 +71,42 @@
         return false;
       }
 
-      // Skip duplicate check if title is unchanged
-      if (title === decodeURIComponent(previous)) {
-        try {
-          const response = await fetch('/edit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ previous, new: title, details, email, dueDate })
-          });
-          if (response.ok) {
-            window.location.href = '/';
-          } else {
-            const data = await response.json();
-            alertMessage.textContent = data.error || 'Failed to save changes';
-            alertMessage.classList.add('show');
-          }
-        } catch (err) {
-          console.error('Error saving task:', err);
-          alertMessage.textContent = 'Error saving task: ' + err.message;
-          alertMessage.classList.add('show');
-        }
-        return false;
-      }
-
-      // Check for duplicate title
       try {
-        const response = await fetch('/check-title', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, exclude: decodeURIComponent(previous) })
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          alertMessage.textContent = data.error || 'Error checking title availability';
-          alertMessage.classList.add('show');
-          return false;
+        if (title !== originalTitle) {
+          let response = await fetch('/check-title', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title })
+          });
+          let data = await response.json();
+          if (!response.ok) {
+            alertMessage.textContent = data.error || 'Error checking title availability';
+            alertMessage.classList.add('show');
+            return false;
+          }
+          if (data.exists) {
+            alertMessage.textContent = 'Task title already exists. Please choose a different title.';
+            alertMessage.classList.add('show');
+            return false;
+          }
         }
-        if (data.exists) {
-          alertMessage.textContent = 'Task title already exists. Please choose a different title.';
-          alertMessage.classList.add('show');
-          return false;
-        }
-        // Submit form
-        const formResponse = await fetch('/edit', {
+
+        let response = await fetch('/edit/<%= encodeURIComponent(task.title) %>', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ previous, new: title, details, email, dueDate })
+          body: new URLSearchParams({ title, email, dueDate, details })
         });
-        if (formResponse.ok) {
-          window.location.href = '/';
-        } else {
-          const formData = await formResponse.json();
-          alertMessage.textContent = formData.error || 'Failed to save changes';
+        if (!response.ok) {
+          const data = await response.json();
+          alertMessage.textContent = data.error || 'Error updating task';
           alertMessage.classList.add('show');
+          return false;
         }
+        window.location.href = `/?view=${view}`;
+        return true;
       } catch (err) {
-        console.error('Error checking title:', err);
-        alertMessage.textContent = 'Error checking title availability: ' + err.message;
+        console.error('Error updating task:', err);
+        alertMessage.textContent = 'Error updating task: ' + err.message;
         alertMessage.classList.add('show');
         return false;
       }
